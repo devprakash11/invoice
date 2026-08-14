@@ -8,9 +8,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
 import InvoiceTable from "../components/InvoiceTable";
-import {
-  invoices as defaultInvoices,
-} from "../data/invoices";
+import { invoices as defaultInvoices } from "../data/invoices";
 
 const STORAGE_KEY = "limitless-design-invoices";
 
@@ -20,7 +18,7 @@ export default function Invoices() {
   const [status, setStatus] = useState("All");
 
   /* =====================================================
-     LOAD
+     LOAD INVOICES
   ===================================================== */
 
   const loadInvoices = () => {
@@ -50,31 +48,17 @@ export default function Invoices() {
       loadInvoices();
     };
 
-    window.addEventListener(
-      "invoicesUpdated",
-      handleUpdate
-    );
-
-    window.addEventListener(
-      "storage",
-      handleUpdate
-    );
+    window.addEventListener("invoicesUpdated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
 
     return () => {
-      window.removeEventListener(
-        "invoicesUpdated",
-        handleUpdate
-      );
-
-      window.removeEventListener(
-        "storage",
-        handleUpdate
-      );
+      window.removeEventListener("invoicesUpdated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
     };
   }, []);
 
   /* =====================================================
-     FILTER
+     FILTER INVOICES
   ===================================================== */
 
   const filtered = useMemo(() => {
@@ -94,8 +78,7 @@ export default function Invoices() {
         !search || searchableText.includes(search);
 
       const matchStatus =
-        status === "All" ||
-        invoice.status === status;
+        status === "All" || invoice.status === status;
 
       return matchQuery && matchStatus;
     });
@@ -103,7 +86,9 @@ export default function Invoices() {
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -116,8 +101,7 @@ export default function Invoices() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Create, review and manage professional
-            client invoices.
+            Create, review and manage professional client invoices.
           </p>
         </div>
 
@@ -130,7 +114,9 @@ export default function Invoices() {
         </Link>
       </div>
 
-      {/* SEARCH / FILTER */}
+      {/* =====================================================
+          SEARCH + FILTER
+      ===================================================== */}
 
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row">
         <label className="relative flex-1">
@@ -140,12 +126,11 @@ export default function Invoices() {
           />
 
           <input
+            type="text"
             value={query}
-            onChange={(e) =>
-              setQuery(e.target.value)
-            }
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search invoice, client or project..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
           />
         </label>
 
@@ -157,23 +142,21 @@ export default function Invoices() {
 
           <select
             value={status}
-            onChange={(e) =>
-              setStatus(e.target.value)
-            }
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500"
+            onChange={(e) => setStatus(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold outline-none transition focus:border-indigo-500 focus:bg-white"
           >
             <option value="All">All Status</option>
             <option value="Paid">Paid</option>
             <option value="Pending">Pending</option>
-            <option value="Partially Paid">
-              Partially Paid
-            </option>
+            <option value="Partially Paid">Partially Paid</option>
             <option value="Overdue">Overdue</option>
           </select>
         </div>
       </div>
 
-      {/* RESULTS */}
+      {/* =====================================================
+          RESULTS
+      ===================================================== */}
 
       {filtered.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -198,7 +181,7 @@ export default function Invoices() {
           {!query && status === "All" && (
             <Link
               to="/invoices/new"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800"
             >
               <Plus size={16} />
               Create Invoice
