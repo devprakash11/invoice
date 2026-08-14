@@ -9,21 +9,26 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+
 import StatCard from "../components/StatCard";
 import InvoiceTable from "../components/InvoiceTable";
-import { invoices as defaultInvoices, formatINR, getSubtotal } from "../data/invoices";
-import { useEffect, useMemo, useState } from "react";
+import {
+  invoices as defaultInvoices,
+  formatINR,
+  getSubtotal,
+} from "../data/invoices";
 
 const STORAGE_KEY = "limitless-design-invoices";
 
 export default function Dashboard() {
-  const [invoiceList, setInvoiceList] = useState(defaultInvoices);
+  const [invoiceList, setInvoiceList] = useState([]);
 
   /* =====================================================
-     LOAD SAVED INVOICES
+     LOAD INVOICES
   ===================================================== */
 
-  useEffect(() => {
+  const loadInvoices = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
 
@@ -32,51 +37,83 @@ export default function Dashboard() {
 
         if (Array.isArray(parsed)) {
           setInvoiceList(parsed);
+          return;
         }
       }
+
+      setInvoiceList(defaultInvoices);
     } catch (error) {
       console.error("Unable to load invoices:", error);
       setInvoiceList(defaultInvoices);
     }
+  };
+
+  useEffect(() => {
+    loadInvoices();
+
+    const handleUpdate = () => {
+      loadInvoices();
+    };
+
+    window.addEventListener(
+      "invoicesUpdated",
+      handleUpdate
+    );
+
+    window.addEventListener(
+      "storage",
+      handleUpdate
+    );
+
+    return () => {
+      window.removeEventListener(
+        "invoicesUpdated",
+        handleUpdate
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleUpdate
+      );
+    };
   }, []);
 
   /* =====================================================
-     CALCULATIONS
+     CALCULATE STATS
   ===================================================== */
 
   const stats = useMemo(() => {
     const total = invoiceList.reduce(
       (sum, invoice) =>
-        sum + Number(invoice.total ?? getSubtotal(invoice) ?? 0),
+        sum +
+        Number(
+          invoice.total ??
+            getSubtotal(invoice) ??
+            0
+        ),
       0
     );
 
-    const paid = invoiceList.reduce((sum, invoice) => {
-      if (invoice.status === "Paid") {
-        return (
-          sum +
-          Number(invoice.amountPaid ?? invoice.total ?? getSubtotal(invoice) ?? 0)
-        );
-      }
+    const paid = invoiceList.reduce(
+      (sum, invoice) =>
+        sum +
+        Number(invoice.amountPaid || 0),
+      0
+    );
 
-      return sum;
-    }, 0);
-
-    const outstanding = invoiceList.reduce((sum, invoice) => {
-      if (invoice.status !== "Paid") {
-        return (
-          sum +
-          Number(
-            invoice.balanceDue ??
-              invoice.total ??
-              getSubtotal(invoice) ??
+    const outstanding = invoiceList.reduce(
+      (sum, invoice) =>
+        sum +
+        Number(
+          invoice.balanceDue ??
+            Math.max(
+              Number(invoice.total || 0) -
+                Number(invoice.amountPaid || 0),
               0
-          )
-        );
-      }
-
-      return sum;
-    }, 0);
+            )
+        ),
+      0
+    );
 
     return {
       total,
@@ -94,11 +131,17 @@ export default function Dashboard() {
     return [...invoiceList]
       .sort((a, b) => {
         const dateA = new Date(
-          a.invoiceDate || a.issueDate || 0
+          a.invoiceDate ||
+            a.issueDate ||
+            a.updatedAt ||
+            0
         ).getTime();
 
         const dateB = new Date(
-          b.invoiceDate || b.issueDate || 0
+          b.invoiceDate ||
+            b.issueDate ||
+            b.updatedAt ||
+            0
         ).getTime();
 
         return dateB - dateA;
@@ -108,21 +151,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-
-      {/* =====================================================
-          HERO
-      ===================================================== */}
+      {/* HERO */}
 
       <section className="relative overflow-hidden rounded-[28px] bg-slate-950 px-6 py-8 text-white shadow-xl sm:px-9 sm:py-10">
-
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-600/20 blur-3xl" />
 
         <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-blue-600/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-
           <div className="max-w-2xl">
-
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300">
               <Receipt size={14} />
               Limitless Design · Invoice Studio
@@ -136,13 +173,13 @@ export default function Dashboard() {
             </h1>
 
             <p className="mt-4 max-w-xl text-sm leading-6 text-slate-400">
-              Create polished, client-ready invoices for your creative
-              projects. Manage billing, payment details and outstanding
-              balances from one simple workspace.
+              Create polished, client-ready invoices
+              for your creative projects. Manage
+              billing, payments and outstanding
+              balances from one workspace.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
-
               <Link
                 to="/invoices/new"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-100"
@@ -158,16 +195,11 @@ export default function Dashboard() {
               >
                 View Invoices
               </Link>
-
             </div>
           </div>
 
-          {/* HERO SUMMARY */}
-
           <div className="hidden min-w-[250px] rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm lg:block">
-
             <div className="flex items-center gap-3">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300">
                 <TrendingUp size={21} />
               </div>
@@ -181,32 +213,24 @@ export default function Dashboard() {
                   {formatINR(stats.total)}
                 </p>
               </div>
-
             </div>
 
             <div className="mt-5 border-t border-white/10 pt-4">
-
               <p className="text-xs text-slate-400">
-                Active invoices
+                Total invoices
               </p>
 
               <p className="mt-1 text-lg font-bold text-white">
                 {stats.count}
               </p>
-
             </div>
-
           </div>
-
         </div>
       </section>
 
-      {/* =====================================================
-          STAT CARDS
-      ===================================================== */}
+      {/* STATS */}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
         <StatCard
           label="Total billed"
           value={formatINR(stats.total)}
@@ -217,36 +241,30 @@ export default function Dashboard() {
         <StatCard
           label="Paid"
           value={formatINR(stats.paid)}
-          helper="Successfully collected"
+          helper="Amount collected"
           icon={FileCheck2}
         />
 
         <StatCard
           label="Outstanding"
           value={formatINR(stats.outstanding)}
-          helper="Pending + overdue"
+          helper="Amount still due"
           icon={Clock3}
         />
 
         <StatCard
           label="Invoices"
           value={stats.count}
-          helper="Total invoice records"
+          helper="Total records"
           icon={FileClock}
         />
-
       </section>
 
-      {/* =====================================================
-          RECENT INVOICES
-      ===================================================== */}
+      {/* RECENT INVOICES */}
 
       <section>
-
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-
           <div>
-
             <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">
               Billing overview
             </p>
@@ -256,9 +274,8 @@ export default function Dashboard() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Your latest invoice activity and payment records.
+              Your latest invoice activity.
             </p>
-
           </div>
 
           <Link
@@ -268,16 +285,13 @@ export default function Dashboard() {
             View all
             <ArrowRight size={15} />
           </Link>
-
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
           {recentInvoices.length > 0 ? (
             <InvoiceTable invoices={recentInvoices} />
           ) : (
             <div className="px-6 py-16 text-center">
-
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                 <Receipt size={25} />
               </div>
@@ -287,7 +301,8 @@ export default function Dashboard() {
               </h3>
 
               <p className="mt-1 text-sm text-slate-500">
-                Create your first invoice to start managing your billing.
+                Create your first invoice to start
+                managing billing.
               </p>
 
               <Link
@@ -297,14 +312,10 @@ export default function Dashboard() {
                 <Plus size={16} />
                 Create Invoice
               </Link>
-
             </div>
           )}
-
         </div>
-
       </section>
-
     </div>
   );
 }

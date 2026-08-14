@@ -2,20 +2,406 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================
+   BASE
+========================================================= */
+
 @layer base {
-  html { scroll-behavior: smooth; }
-  body { @apply bg-mist font-sans antialiased; }
-  button, input, select { font: inherit; }
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-mist font-sans antialiased text-slate-900;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    @apply select-none;
+  }
+
+  ::selection {
+    @apply bg-indigo-100 text-indigo-900;
+  }
 }
+
+/* =========================================================
+   REUSABLE COMPONENTS
+========================================================= */
 
 @layer components {
-  .field { @apply w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-accent focus:bg-white focus:ring-2 focus:ring-indigo-100; }
+  /* -----------------------------------------
+     FORM FIELD
+  ----------------------------------------- */
+
+  .field {
+    @apply w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5
+      text-sm font-medium text-slate-800 outline-none transition-all
+      placeholder:text-slate-400
+      hover:border-slate-300
+      focus:border-indigo-500
+      focus:bg-white
+      focus:ring-4 focus:ring-indigo-50;
+  }
+
+  .field:disabled {
+    @apply cursor-not-allowed bg-slate-100 text-slate-400;
+  }
+
+  textarea.field {
+    @apply min-h-[110px] resize-y;
+  }
+
+  /* -----------------------------------------
+     CARD
+  ----------------------------------------- */
+
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200
+      hover:-translate-y-0.5
+      hover:border-slate-300
+      hover:shadow-md;
+  }
+
+  /* -----------------------------------------
+     PRIMARY BUTTON
+  ----------------------------------------- */
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+      rounded-xl bg-slate-950 px-4 py-2.5
+      text-sm font-bold text-white
+      shadow-sm transition-all
+      hover:bg-slate-800
+      hover:shadow-md
+      active:scale-[0.98]
+      disabled:pointer-events-none
+      disabled:opacity-50;
+  }
+
+  /* -----------------------------------------
+     ACCENT BUTTON
+  ----------------------------------------- */
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2
+      rounded-xl bg-indigo-600 px-4 py-2.5
+      text-sm font-bold text-white
+      shadow-sm transition-all
+      hover:bg-indigo-700
+      hover:shadow-md
+      active:scale-[0.98]
+      disabled:pointer-events-none
+      disabled:opacity-50;
+  }
+
+  /* -----------------------------------------
+     SECONDARY BUTTON
+  ----------------------------------------- */
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+      rounded-xl border border-slate-200
+      bg-white px-4 py-2.5
+      text-sm font-semibold text-slate-700
+      shadow-sm transition-all
+      hover:border-slate-300
+      hover:bg-slate-50
+      active:scale-[0.98];
+  }
+
+  /* -----------------------------------------
+     DANGER BUTTON
+  ----------------------------------------- */
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+      rounded-xl border border-red-100
+      bg-red-50 px-4 py-2.5
+      text-sm font-semibold text-red-600
+      transition-all
+      hover:border-red-200
+      hover:bg-red-100;
+  }
+
+  /* -----------------------------------------
+     PAGE TITLE
+  ----------------------------------------- */
+
+  .page-title {
+    @apply text-3xl font-black tracking-tight text-slate-950;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm leading-6 text-slate-500;
+  }
+
+  /* -----------------------------------------
+     SECTION TITLE
+  ----------------------------------------- */
+
+  .section-title {
+    @apply text-lg font-bold tracking-tight text-slate-950;
+  }
+
+  .section-description {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  /* -----------------------------------------
+     STATUS BADGES
+  ----------------------------------------- */
+
+  .status-paid {
+    @apply inline-flex items-center rounded-full
+      bg-emerald-50 px-2.5 py-1
+      text-xs font-bold text-emerald-700
+      ring-1 ring-emerald-200;
+  }
+
+  .status-pending {
+    @apply inline-flex items-center rounded-full
+      bg-amber-50 px-2.5 py-1
+      text-xs font-bold text-amber-700
+      ring-1 ring-amber-200;
+  }
+
+  .status-overdue {
+    @apply inline-flex items-center rounded-full
+      bg-rose-50 px-2.5 py-1
+      text-xs font-bold text-rose-700
+      ring-1 ring-rose-200;
+  }
+
+  .status-partial {
+    @apply inline-flex items-center rounded-full
+      bg-blue-50 px-2.5 py-1
+      text-xs font-bold text-blue-700
+      ring-1 ring-blue-200;
+  }
+
+  /* -----------------------------------------
+     TABLE
+  ----------------------------------------- */
+
+  .table-container {
+    @apply overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .table-header {
+    @apply bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500;
+  }
+
+  .table-row {
+    @apply border-t border-slate-100 transition-colors
+      hover:bg-slate-50/70;
+  }
+
+  /* -----------------------------------------
+     INVOICE PAPER
+  ----------------------------------------- */
+
+  .invoice-paper {
+    @apply mx-auto w-full max-w-[850px]
+      rounded-2xl border border-slate-200
+      bg-white shadow-xl;
+  }
+
+  /* -----------------------------------------
+     DIVIDER
+  ----------------------------------------- */
+
+  .soft-divider {
+    @apply border-t border-slate-100;
+  }
+
+  /* -----------------------------------------
+     EMPTY STATE
+  ----------------------------------------- */
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center
+      rounded-2xl border border-dashed border-slate-200
+      bg-white px-6 py-16 text-center;
+  }
 }
 
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* =========================================================
+   INPUT NUMBER
+========================================================= */
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.6;
+}
+
+/* =========================================================
+   DATE INPUT
+========================================================= */
+
+input[type="date"] {
+  color-scheme: light;
+}
+
+/* =========================================================
+   FOCUS ACCESSIBILITY
+========================================================= */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   LINKS
+========================================================= */
+
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================================
+   SMOOTH TRANSITIONS
+========================================================= */
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-property:
+    color,
+    background-color,
+    border-color,
+    box-shadow,
+    opacity,
+    transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* =========================================================
+   PRINT
+========================================================= */
+
 @media print {
-  @page { size: A4; margin: 12mm; }
-  body { background: white !important; }
-  header, footer { display: none !important; }
-  main { max-width: none !important; padding: 0 !important; }
-  .invoice-paper { color: #0f172a !important; }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: #0f172a !important;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  header,
+  footer,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .invoice-paper {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .invoice-paper,
+  .invoice-paper * {
+    color: #0f172a !important;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  a {
+    text-decoration: none !important;
+  }
+
+  button {
+    display: none !important;
+  }
+
+  img {
+    max-width: 100%;
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 640px) {
+  .page-title {
+    @apply text-2xl;
+  }
+
+  .invoice-paper {
+    @apply rounded-none border-0 shadow-none;
+  }
 }

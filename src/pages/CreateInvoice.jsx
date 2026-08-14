@@ -11,22 +11,30 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+const STORAGE_KEY = "limitless-design-invoices";
+const CURRENT_INVOICE_KEY = "limitless-design-invoice";
+
 const initialItems = [
   {
-    id: 1,
+    id: Date.now(),
     description: "Logo Design Package",
     qty: 1,
     rate: 0,
   },
 ];
 
+const getToday = () => {
+  const date = new Date();
+  return date.toISOString().split("T")[0];
+};
+
 export default function CreateInvoice() {
   const navigate = useNavigate();
 
   const [invoice, setInvoice] = useState({
-    invoiceNumber: "LD/2026-27/0002",
-    invoiceDate: "2026-08-14",
-    dueDate: "2026-08-21",
+    invoiceNumber: `LD/2026-27/${String(Date.now()).slice(-4)}`,
+    invoiceDate: getToday(),
+    dueDate: "",
     projectName: "Website Design & Development",
 
     // Client
@@ -53,7 +61,7 @@ export default function CreateInvoice() {
     upiId: "yourname@bank",
     upiQr: null,
 
-    // Bank Transfer
+    // Bank
     bankEnabled: false,
     bankName: "",
     accountName: "",
@@ -67,10 +75,11 @@ export default function CreateInvoice() {
   });
 
   const [items, setItems] = useState(initialItems);
+  const [saving, setSaving] = useState(false);
 
-  /* =========================================
+  /* =====================================================
      UPDATE INVOICE
-  ========================================= */
+  ===================================================== */
 
   const updateInvoice = (field, value) => {
     setInvoice((prev) => ({
@@ -79,9 +88,9 @@ export default function CreateInvoice() {
     }));
   };
 
-  /* =========================================
+  /* =====================================================
      UPDATE ITEM
-  ========================================= */
+  ===================================================== */
 
   const updateItem = (id, field, value) => {
     setItems((prev) =>
@@ -99,9 +108,9 @@ export default function CreateInvoice() {
     );
   };
 
-  /* =========================================
+  /* =====================================================
      ADD ITEM
-  ========================================= */
+  ===================================================== */
 
   const addItem = () => {
     setItems((prev) => [
@@ -115,9 +124,9 @@ export default function CreateInvoice() {
     ]);
   };
 
-  /* =========================================
+  /* =====================================================
      REMOVE ITEM
-  ========================================= */
+  ===================================================== */
 
   const removeItem = (id) => {
     if (items.length === 1) return;
@@ -125,47 +134,86 @@ export default function CreateInvoice() {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  /* =========================================
+  /* =====================================================
      CALCULATIONS
-  ========================================= */
+  ===================================================== */
 
   const subtotal = useMemo(() => {
-    return items.reduce((total, item) => {
-      const qty = Number(item.qty) || 0;
-      const rate = Number(item.rate) || 0;
-
-      return total + qty * rate;
+    return items.reduce((sum, item) => {
+      return (
+        sum +
+        (Number(item.qty) || 0) *
+          (Number(item.rate) || 0)
+      );
     }, 0);
   }, [items]);
 
-  const discount = Math.max(Number(invoice.discount) || 0, 0);
-
-  const amountPaid = Math.max(Number(invoice.amountPaid) || 0, 0);
+  const discount = Math.max(
+    Number(invoice.discount) || 0,
+    0
+  );
 
   const total = Math.max(subtotal - discount, 0);
 
+  const amountPaid = Math.min(
+    Math.max(Number(invoice.amountPaid) || 0, 0),
+    total
+  );
+
   const balanceDue = Math.max(total - amountPaid, 0);
 
-  /* =========================================
-     CURRENCY FORMAT
-  ========================================= */
+  /* =====================================================
+     PAYMENT STATUS
+  ===================================================== */
 
-  const formatCurrency = (amount) => {
+  const getPaymentStatus = () => {
+    if (total <= 0) {
+      return "Pending";
+    }
+
+    if (amountPaid >= total) {
+      return "Paid";
+    }
+
+    if (amountPaid > 0) {
+      return "Partially Paid";
+    }
+
+    if (
+      invoice.dueDate &&
+      new Date(invoice.dueDate) < new Date(getToday())
+    ) {
+      return "Overdue";
+    }
+
+    return "Pending";
+  };
+
+  /* =====================================================
+     CURRENCY
+  ===================================================== */
+
+  const formatCurrency = (value) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       maximumFractionDigits: 2,
-    }).format(amount || 0);
+    }).format(Number(value) || 0);
   };
 
-  /* =========================================
-     QR CODE UPLOAD
-  ========================================= */
+  /* =====================================================
+     QR UPLOAD
+  ===================================================== */
 
   const handleQrUpload = (event) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image.");
+      return;
+    }
 
     const reader = new FileReader();
 
@@ -176,221 +224,182 @@ export default function CreateInvoice() {
     reader.readAsDataURL(file);
   };
 
-  /* =========================================
-     GET INVOICE DATA
-  ========================================= */
+  /* =====================================================
+     GET COMPLETE INVOICE
+  ===================================================== */
 
   const getInvoiceData = () => {
-    const status =
-      amountPaid >= total
-        ? "Paid"
-        : amountPaid > 0
-        ? "Partially Paid"
-        : "Pending";
+    const status = getPaymentStatus();
 
     return {
       ...invoice,
 
-      // Primary identifiers
       id: invoice.invoiceNumber,
       invoiceNumber: invoice.invoiceNumber,
 
-      // Client aliases used by other pages
       client: invoice.clientName,
       clientName: invoice.clientName,
 
-      // Date aliases
       issueDate: invoice.invoiceDate,
       invoiceDate: invoice.invoiceDate,
 
-      // Items
       items,
 
-      // Financial data
       subtotal,
       discount,
       total,
       amountPaid,
       balanceDue,
+
       gst: 0,
 
-      // Status
       status,
 
-      // Metadata
       updatedAt: new Date().toISOString(),
     };
   };
 
-  /* =========================================
-     SAVE INVOICE
-  ========================================= */
+  /* =====================================================
+     READ SAVED INVOICES
+  ===================================================== */
 
-  const handleSave = () => {
-    const invoiceData = getInvoiceData();
-
-    /*
-     * Save the currently opened invoice.
-     * InvoiceView / Preview can use this key.
-     */
-    localStorage.setItem(
-      "limitless-design-invoice",
-      JSON.stringify(invoiceData)
-    );
-
-    /*
-     * Read existing invoice list.
-     */
-    let savedInvoices = [];
-
+  const getSavedInvoices = () => {
     try {
-      savedInvoices = JSON.parse(
-        localStorage.getItem("limitless-design-invoices") || "[]"
-      );
+      const saved = localStorage.getItem(STORAGE_KEY);
 
-      if (!Array.isArray(savedInvoices)) {
-        savedInvoices = [];
-      }
+      if (!saved) return [];
+
+      const parsed = JSON.parse(saved);
+
+      return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-      console.error("Unable to read saved invoices:", error);
-      savedInvoices = [];
+      console.error("Unable to read invoices:", error);
+      return [];
     }
+  };
 
-    /*
-     * Check whether this invoice already exists.
-     */
+  /* =====================================================
+     SAVE TO LOCAL STORAGE
+  ===================================================== */
+
+  const saveInvoiceToStorage = (invoiceData) => {
+    const savedInvoices = getSavedInvoices();
+
     const existingIndex = savedInvoices.findIndex(
       (item) =>
         item.id === invoiceData.id ||
         item.invoiceNumber === invoiceData.invoiceNumber
     );
 
-    if (existingIndex !== -1) {
-      /*
-       * Update existing invoice.
-       */
+    if (existingIndex >= 0) {
       savedInvoices[existingIndex] = invoiceData;
     } else {
-      /*
-       * Add new invoice to the beginning.
-       */
       savedInvoices.unshift(invoiceData);
     }
 
-    /*
-     * Save complete invoice list.
-     */
     localStorage.setItem(
-      "limitless-design-invoices",
+      STORAGE_KEY,
       JSON.stringify(savedInvoices)
     );
 
-    alert("Invoice saved successfully.");
+    localStorage.setItem(
+      CURRENT_INVOICE_KEY,
+      JSON.stringify(invoiceData)
+    );
 
     /*
-     * Go back to invoice dashboard/list.
+     * Tell other pages that invoice data changed.
      */
-    navigate("/invoices");
+    window.dispatchEvent(new Event("invoicesUpdated"));
   };
 
-  /* =========================================
-     PREVIEW INVOICE
-  ========================================= */
+  /* =====================================================
+     SAVE
+  ===================================================== */
+
+  const handleSave = () => {
+    if (!invoice.clientName.trim()) {
+      alert("Please enter the client name.");
+      return;
+    }
+
+    if (items.some((item) => !item.description.trim())) {
+      alert("Please enter a description for every item.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const invoiceData = getInvoiceData();
+
+      saveInvoiceToStorage(invoiceData);
+
+      alert(
+        `Invoice saved successfully as ${invoiceData.status}.`
+      );
+
+      navigate("/invoices");
+    } catch (error) {
+      console.error("Unable to save invoice:", error);
+      alert("Unable to save invoice.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* =====================================================
+     PREVIEW
+  ===================================================== */
 
   const handlePreview = () => {
     const invoiceData = getInvoiceData();
 
-    /*
-     * Save current invoice for preview.
-     */
-    localStorage.setItem(
-      "limitless-design-invoice",
-      JSON.stringify(invoiceData)
-    );
-
-    /*
-     * Also save/update it in invoice list.
-     */
-    let savedInvoices = [];
-
-    try {
-      savedInvoices = JSON.parse(
-        localStorage.getItem("limitless-design-invoices") || "[]"
-      );
-
-      if (!Array.isArray(savedInvoices)) {
-        savedInvoices = [];
-      }
-    } catch (error) {
-      console.error("Unable to read saved invoices:", error);
-      savedInvoices = [];
-    }
-
-    const existingIndex = savedInvoices.findIndex(
-      (item) =>
-        item.id === invoiceData.id ||
-        item.invoiceNumber === invoiceData.invoiceNumber
-    );
-
-    if (existingIndex !== -1) {
-      savedInvoices[existingIndex] = invoiceData;
-    } else {
-      savedInvoices.unshift(invoiceData);
-    }
-
-    localStorage.setItem(
-      "limitless-design-invoices",
-      JSON.stringify(savedInvoices)
-    );
+    saveInvoiceToStorage(invoiceData);
 
     navigate("/invoices/preview");
   };
 
-  /* =========================================
-     PAGE
-  ========================================= */
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* =====================================
-          HEADER
-      ===================================== */}
+      {/* HEADER */}
 
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
             <Link
               to="/invoices"
-              className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
             >
               <ArrowLeft size={18} />
             </Link>
 
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-950">
+              <h1 className="text-xl font-black tracking-tight text-slate-950">
                 Create Invoice
               </h1>
 
-              <p className="text-sm text-slate-500">
-                Professional non-GST invoice with UPI and bank transfer.
+              <p className="hidden text-xs text-slate-500 sm:block">
+                Create a professional non-GST invoice.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Save size={17} />
-              Save
+              {saving ? "Saving..." : "Save"}
             </button>
 
             <button
               type="button"
               onClick={handlePreview}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800"
             >
               <Eye size={17} />
               Preview
@@ -399,15 +408,13 @@ export default function CreateInvoice() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-6 px-6 py-6">
-        {/* =====================================
-            INVOICE DETAILS
-        ===================================== */}
+      <main className="mx-auto max-w-7xl space-y-6 px-6 py-7">
+        {/* INVOICE DETAILS */}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="card">
           <SectionHeader
             title="Invoice Details"
-            description="This template does not add GST."
+            description="Basic information about this invoice."
           />
 
           <div className="grid gap-5 md:grid-cols-2">
@@ -415,16 +422,21 @@ export default function CreateInvoice() {
               label="Invoice Number"
               value={invoice.invoiceNumber}
               onChange={(e) =>
-                updateInvoice("invoiceNumber", e.target.value)
+                updateInvoice(
+                  "invoiceNumber",
+                  e.target.value
+                )
               }
             />
 
             <Input
               label="Project Name"
-              placeholder="Website Design & Development"
               value={invoice.projectName}
               onChange={(e) =>
-                updateInvoice("projectName", e.target.value)
+                updateInvoice(
+                  "projectName",
+                  e.target.value
+                )
               }
             />
 
@@ -433,7 +445,10 @@ export default function CreateInvoice() {
               type="date"
               value={invoice.invoiceDate}
               onChange={(e) =>
-                updateInvoice("invoiceDate", e.target.value)
+                updateInvoice(
+                  "invoiceDate",
+                  e.target.value
+                )
               }
             />
 
@@ -441,24 +456,24 @@ export default function CreateInvoice() {
               label="Due Date"
               type="date"
               value={invoice.dueDate}
-              onChange={(e) => updateInvoice("dueDate", e.target.value)}
+              onChange={(e) =>
+                updateInvoice("dueDate", e.target.value)
+              }
             />
           </div>
 
-          <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-            <strong>Non-GST Invoice:</strong> no GSTIN, CGST, SGST, IGST or
-            tax calculation is included.
+          <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+            <strong>Non-GST Invoice:</strong> GSTIN,
+            CGST, SGST and IGST are not included.
           </div>
         </section>
 
-        {/* =====================================
-            BILL TO
-        ===================================== */}
+        {/* CLIENT */}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="card">
           <SectionHeader
             title="Bill To"
-            description="Client details."
+            description="Enter your client's billing information."
           />
 
           <div className="grid gap-5 md:grid-cols-2">
@@ -467,27 +482,36 @@ export default function CreateInvoice() {
               required
               value={invoice.clientName}
               onChange={(e) =>
-                updateInvoice("clientName", e.target.value)
+                updateInvoice(
+                  "clientName",
+                  e.target.value
+                )
               }
             />
 
             <Input
               label="Company"
               value={invoice.company}
-              onChange={(e) => updateInvoice("company", e.target.value)}
+              onChange={(e) =>
+                updateInvoice("company", e.target.value)
+              }
             />
 
             <Input
               label="Email"
               type="email"
               value={invoice.email}
-              onChange={(e) => updateInvoice("email", e.target.value)}
+              onChange={(e) =>
+                updateInvoice("email", e.target.value)
+              }
             />
 
             <Input
               label="Phone"
               value={invoice.phone}
-              onChange={(e) => updateInvoice("phone", e.target.value)}
+              onChange={(e) =>
+                updateInvoice("phone", e.target.value)
+              }
             />
 
             <TextArea
@@ -495,20 +519,21 @@ export default function CreateInvoice() {
               className="md:col-span-2"
               value={invoice.billingAddress}
               onChange={(e) =>
-                updateInvoice("billingAddress", e.target.value)
+                updateInvoice(
+                  "billingAddress",
+                  e.target.value
+                )
               }
             />
           </div>
         </section>
 
-        {/* =====================================
-            YOUR BUSINESS
-        ===================================== */}
+        {/* BUSINESS */}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="card">
           <SectionHeader
             title="Your Business"
-            description="Limitless Design sender details."
+            description="Information displayed on your invoice."
           />
 
           <div className="grid gap-5 md:grid-cols-2">
@@ -516,7 +541,10 @@ export default function CreateInvoice() {
               label="Business Name"
               value={invoice.businessName}
               onChange={(e) =>
-                updateInvoice("businessName", e.target.value)
+                updateInvoice(
+                  "businessName",
+                  e.target.value
+                )
               }
             />
 
@@ -524,7 +552,10 @@ export default function CreateInvoice() {
               label="Phone"
               value={invoice.businessPhone}
               onChange={(e) =>
-                updateInvoice("businessPhone", e.target.value)
+                updateInvoice(
+                  "businessPhone",
+                  e.target.value
+                )
               }
             />
 
@@ -533,14 +564,19 @@ export default function CreateInvoice() {
               type="email"
               value={invoice.businessEmail}
               onChange={(e) =>
-                updateInvoice("businessEmail", e.target.value)
+                updateInvoice(
+                  "businessEmail",
+                  e.target.value
+                )
               }
             />
 
             <Input
               label="Website"
               value={invoice.website}
-              onChange={(e) => updateInvoice("website", e.target.value)}
+              onChange={(e) =>
+                updateInvoice("website", e.target.value)
+              }
             />
 
             <TextArea
@@ -548,37 +584,40 @@ export default function CreateInvoice() {
               className="md:col-span-2"
               value={invoice.businessAddress}
               onChange={(e) =>
-                updateInvoice("businessAddress", e.target.value)
+                updateInvoice(
+                  "businessAddress",
+                  e.target.value
+                )
               }
             />
           </div>
         </section>
 
-        {/* =====================================
-            SERVICES & ITEMS
-        ===================================== */}
+        {/* ITEMS */}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="card">
           <SectionHeader
             title="Services & Items"
-            description="Add services included in this invoice."
+            description="Add all services included in the invoice."
           />
 
           <div className="space-y-4">
             {items.map((item, index) => (
               <div
                 key={item.id}
-                className="rounded-xl border border-slate-200 p-4"
+                className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4"
               >
                 <div className="mb-4 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-800">
+                  <p className="text-sm font-black text-slate-900">
                     Item {index + 1}
                   </p>
 
                   {items.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() =>
+                        removeItem(item.id)
+                      }
                       className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
                     >
                       <Trash2 size={17} />
@@ -586,7 +625,7 @@ export default function CreateInvoice() {
                   )}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-[1fr_95px_140px_140px]">
+                <div className="grid gap-4 md:grid-cols-[1fr_100px_150px_150px]">
                   <Input
                     label="Description"
                     placeholder="Logo Design Package"
@@ -633,8 +672,8 @@ export default function CreateInvoice() {
                       Amount
                     </label>
 
-                    <div className="flex h-[46px] items-center rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-900">
-                      {formatINR(
+                    <div className="flex h-[46px] items-center rounded-xl bg-white px-4 text-sm font-black text-slate-900 ring-1 ring-slate-200">
+                      {formatCurrency(
                         Number(item.qty || 0) *
                           Number(item.rate || 0)
                       )}
@@ -647,7 +686,7 @@ export default function CreateInvoice() {
             <button
               type="button"
               onClick={addItem}
-              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
               <Plus size={17} />
               Add Item
@@ -655,12 +694,13 @@ export default function CreateInvoice() {
           </div>
         </section>
 
-        {/* =====================================
-            PAYMENT SUMMARY
-        ===================================== */}
+        {/* PAYMENT SUMMARY */}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <SectionHeader title="Payment Summary" />
+        <section className="card">
+          <SectionHeader
+            title="Payment Summary"
+            description="Payment status is calculated automatically."
+          />
 
           <div className="grid gap-5 md:grid-cols-2">
             <Input
@@ -669,7 +709,10 @@ export default function CreateInvoice() {
               min="0"
               value={invoice.discount}
               onChange={(e) =>
-                updateInvoice("discount", e.target.value)
+                updateInvoice(
+                  "discount",
+                  e.target.value
+                )
               }
             />
 
@@ -679,20 +722,36 @@ export default function CreateInvoice() {
               min="0"
               value={invoice.amountPaid}
               onChange={(e) =>
-                updateInvoice("amountPaid", e.target.value)
+                updateInvoice(
+                  "amountPaid",
+                  e.target.value
+                )
               }
             />
           </div>
 
-          <div className="mt-6 ml-auto max-w-md rounded-xl bg-slate-50 p-5">
-            <SummaryRow label="Subtotal" value={subtotal} />
+          {/* STATUS */}
+
+          <div className="mt-5 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <span className="text-sm font-semibold text-slate-600">
+              Payment Status
+            </span>
+
+            <StatusBadge status={getPaymentStatus()} />
+          </div>
+
+          <div className="mt-5 ml-auto max-w-md rounded-2xl bg-slate-950 p-5 text-white">
+            <SummaryRow
+              label="Subtotal"
+              value={subtotal}
+            />
 
             <SummaryRow
               label="Discount"
               value={discount}
             />
 
-            <div className="my-3 border-t border-slate-200" />
+            <div className="my-3 border-t border-white/10" />
 
             <SummaryRow
               label="Total"
@@ -705,7 +764,7 @@ export default function CreateInvoice() {
               value={amountPaid}
             />
 
-            <div className="my-3 border-t border-slate-200" />
+            <div className="my-3 border-t border-white/10" />
 
             <SummaryRow
               label="Balance Due"
@@ -715,11 +774,9 @@ export default function CreateInvoice() {
           </div>
         </section>
 
-        {/* =====================================
-            PAYMENT METHODS
-        ===================================== */}
+        {/* PAYMENT METHODS */}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="card">
           <SectionHeader
             title="Payment Methods"
             description="Enable UPI, bank transfer, or both."
@@ -729,7 +786,7 @@ export default function CreateInvoice() {
             <PaymentMethod
               icon={<WalletCards size={20} />}
               title="UPI"
-              description="Accept UPI payments via QR code or UPI ID"
+              description="Accept UPI payments using QR or UPI ID."
               enabled={invoice.upiEnabled}
               onClick={() =>
                 updateInvoice(
@@ -742,7 +799,7 @@ export default function CreateInvoice() {
             <PaymentMethod
               icon={<Building2 size={20} />}
               title="Bank Transfer"
-              description="Provide bank account details for transfers"
+              description="Show your bank account details."
               enabled={invoice.bankEnabled}
               onClick={() =>
                 updateInvoice(
@@ -753,10 +810,8 @@ export default function CreateInvoice() {
             />
           </div>
 
-          {/* UPI DETAILS */}
-
           {invoice.upiEnabled && (
-            <div className="mt-5 rounded-xl bg-slate-50 p-4">
+            <div className="mt-5 rounded-2xl bg-slate-50 p-5">
               <div className="grid gap-5 md:grid-cols-2">
                 <Input
                   label="UPI Name"
@@ -787,7 +842,7 @@ export default function CreateInvoice() {
                   UPI QR Code
                 </label>
 
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center transition hover:border-blue-400 hover:bg-blue-50">
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center transition hover:border-indigo-400 hover:bg-indigo-50">
                   {invoice.upiQr ? (
                     <img
                       src={invoice.upiQr}
@@ -801,7 +856,7 @@ export default function CreateInvoice() {
                         className="mb-2 text-slate-500"
                       />
 
-                      <span className="text-sm font-medium text-slate-700">
+                      <span className="text-sm font-bold text-slate-700">
                         Upload QR Code
                       </span>
 
@@ -822,14 +877,11 @@ export default function CreateInvoice() {
             </div>
           )}
 
-          {/* BANK TRANSFER */}
-
           {invoice.bankEnabled && (
-            <div className="mt-5 rounded-xl bg-slate-50 p-4">
+            <div className="mt-5 rounded-2xl bg-slate-50 p-5">
               <div className="grid gap-5 md:grid-cols-2">
                 <Input
                   label="Bank Name"
-                  placeholder="Bank Name"
                   value={invoice.bankName}
                   onChange={(e) =>
                     updateInvoice(
@@ -841,7 +893,6 @@ export default function CreateInvoice() {
 
                 <Input
                   label="Account Name"
-                  placeholder="Account Holder Name"
                   value={invoice.accountName}
                   onChange={(e) =>
                     updateInvoice(
@@ -853,7 +904,6 @@ export default function CreateInvoice() {
 
                 <Input
                   label="Account Number"
-                  placeholder="Account Number"
                   value={invoice.accountNumber}
                   onChange={(e) =>
                     updateInvoice(
@@ -865,7 +915,6 @@ export default function CreateInvoice() {
 
                 <Input
                   label="IFSC Code"
-                  placeholder="IFSC Code"
                   value={invoice.ifsc}
                   onChange={(e) =>
                     updateInvoice(
@@ -879,11 +928,9 @@ export default function CreateInvoice() {
           )}
         </section>
 
-        {/* =====================================
-            NOTES & TERMS
-        ===================================== */}
+        {/* NOTES */}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="card">
           <SectionHeader title="Notes & Terms" />
 
           <div className="space-y-5">
@@ -913,24 +960,23 @@ export default function CreateInvoice() {
           </div>
         </section>
 
-        {/* =====================================
-            BOTTOM ACTIONS
-        ===================================== */}
+        {/* BOTTOM ACTIONS */}
 
-        <div className="sticky bottom-4 flex justify-end gap-3">
+        <div className="sticky bottom-4 z-20 flex justify-end gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg transition hover:bg-slate-50"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             <Save size={17} />
-            Save Invoice
+            {saving ? "Saving..." : "Save Invoice"}
           </button>
 
           <button
             type="button"
             onClick={handlePreview}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800"
           >
             <Eye size={17} />
             Preview Invoice
@@ -941,14 +987,14 @@ export default function CreateInvoice() {
   );
 }
 
-/* =========================================
+/* =====================================================
    SECTION HEADER
-========================================= */
+===================================================== */
 
 function SectionHeader({ title, description }) {
   return (
     <div className="mb-6">
-      <h2 className="text-lg font-bold text-slate-950">
+      <h2 className="text-lg font-black text-slate-950">
         {title}
       </h2>
 
@@ -961,9 +1007,9 @@ function SectionHeader({ title, description }) {
   );
 }
 
-/* =========================================
+/* =====================================================
    INPUT
-========================================= */
+===================================================== */
 
 function Input({
   label,
@@ -973,27 +1019,25 @@ function Input({
 }) {
   return (
     <div className={className}>
-      <label className="mb-2 block text-sm font-medium text-slate-700">
+      <label className="mb-2 block text-sm font-semibold text-slate-700">
         {label}
 
         {required && (
-          <span className="ml-1 text-red-500">
-            *
-          </span>
+          <span className="ml-1 text-red-500">*</span>
         )}
       </label>
 
       <input
         {...props}
-        className="h-[46px] w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+        className="h-[46px] w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
       />
     </div>
   );
 }
 
-/* =========================================
+/* =====================================================
    TEXTAREA
-========================================= */
+===================================================== */
 
 function TextArea({
   label,
@@ -1003,22 +1047,22 @@ function TextArea({
 }) {
   return (
     <div className={className}>
-      <label className="mb-2 block text-sm font-medium text-slate-700">
+      <label className="mb-2 block text-sm font-semibold text-slate-700">
         {label}
       </label>
 
       <textarea
         {...props}
         rows={rows}
-        className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+        className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
       />
     </div>
   );
 }
 
-/* =========================================
-   SUMMARY ROW
-========================================= */
+/* =====================================================
+   SUMMARY
+===================================================== */
 
 function SummaryRow({
   label,
@@ -1029,32 +1073,52 @@ function SummaryRow({
     <div
       className={`flex items-center justify-between py-1.5 ${
         bold
-          ? "font-bold text-slate-950"
-          : "text-slate-600"
+          ? "text-base font-black text-white"
+          : "text-sm text-slate-300"
       }`}
     >
       <span>{label}</span>
-
       <span>{formatINR(value)}</span>
     </div>
   );
 }
-
-/* =========================================
-   INR FORMAT
-========================================= */
 
 function formatINR(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,
-  }).format(value || 0);
+  }).format(Number(value) || 0);
 }
 
-/* =========================================
+/* =====================================================
+   STATUS BADGE
+===================================================== */
+
+function StatusBadge({ status }) {
+  const styles = {
+    Paid: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    Pending: "bg-amber-50 text-amber-700 ring-amber-200",
+    Overdue: "bg-rose-50 text-rose-700 ring-rose-200",
+    "Partially Paid":
+      "bg-blue-50 text-blue-700 ring-blue-200",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-black ring-1 ${
+        styles[status] ||
+        "bg-slate-100 text-slate-600 ring-slate-200"
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
+
+/* =====================================================
    PAYMENT METHOD
-========================================= */
+===================================================== */
 
 function PaymentMethod({
   icon,
@@ -1067,9 +1131,9 @@ function PaymentMethod({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
+      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${
         enabled
-          ? "border-blue-500 bg-blue-50"
+          ? "border-indigo-500 bg-indigo-50"
           : "border-slate-200 bg-white hover:bg-slate-50"
       }`}
     >
@@ -1077,7 +1141,7 @@ function PaymentMethod({
         <div
           className={
             enabled
-              ? "text-blue-600"
+              ? "text-indigo-600"
               : "text-slate-400"
           }
         >
@@ -1085,7 +1149,7 @@ function PaymentMethod({
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-black text-slate-900">
             {title}
           </p>
 
@@ -1097,16 +1161,12 @@ function PaymentMethod({
 
       <div
         className={`relative h-6 w-11 rounded-full transition ${
-          enabled
-            ? "bg-blue-600"
-            : "bg-slate-200"
+          enabled ? "bg-indigo-600" : "bg-slate-200"
         }`}
       >
         <div
           className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
-            enabled
-              ? "left-6"
-              : "left-1"
+            enabled ? "left-6" : "left-1"
           }`}
         />
       </div>
