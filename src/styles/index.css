@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply bg-mist font-sans antialiased; }
+  button, input, select { font: inherit; }
+}
+
+@layer components {
+  .field { @apply w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-accent focus:bg-white focus:ring-2 focus:ring-indigo-100; }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: white !important; }
+  header, footer { display: none !important; }
+  main { max-width: none !important; padding: 0 !important; }
+  .invoice-paper { color: #0f172a !important; }
+}
