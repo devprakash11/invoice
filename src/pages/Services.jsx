@@ -1,5 +1,5 @@
 import { ArrowUpRight, Check } from "lucide-react";
-import { services } from "../data/invoices";
+import { services } from "../data/services";
 
 export default function Services() {
   return (

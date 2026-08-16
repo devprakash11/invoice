@@ -1,30 +1,8 @@
 // =====================================================
 // SERVICES
 // =====================================================
-
-export const services = [
-  {
-    title: "Brand Identity",
-    description:
-      "Logo systems, visual identity and brand assets designed to create a strong and consistent brand presence.",
-  },
-  {
-    title: "UI/UX Design",
-    description:
-      "Modern interfaces and user experiences designed for websites, dashboards and digital products.",
-  },
-  {
-    title: "Marketing Design",
-    description:
-      "Professional posters, social media creatives, banners and promotional materials for marketing campaigns.",
-  },
-  {
-    title: "Web Design",
-    description:
-      "Clean, responsive and user-focused website designs for modern businesses and brands.",
-  },
-];
-
+import { services } from "./services";
+export { services };
 
 // =====================================================
 // DEFAULT INVOICES
@@ -40,9 +18,9 @@ export const invoices = [
 
     company: "Demo Company",
 
-    email: "",
-    phone: "",
-    billingAddress: "",
+    email: "client@demo.com",
+    phone: "+91 98765 43210",
+    billingAddress: "Mumbai, Maharashtra, India",
 
     invoiceDate: "2026-08-10",
     issueDate: "2026-08-10",
@@ -99,25 +77,18 @@ export const invoices = [
   },
 ];
 
-
 // =====================================================
 // CALCULATE SUBTOTAL
 // =====================================================
 
 export function getSubtotal(invoice) {
   // Use saved subtotal if available
-  if (
-    invoice &&
-    typeof invoice.subtotal === "number"
-  ) {
+  if (invoice && typeof invoice.subtotal === "number") {
     return invoice.subtotal;
   }
 
   // Make sure items exist
-  if (
-    !invoice ||
-    !Array.isArray(invoice.items)
-  ) {
+  if (!invoice || !Array.isArray(invoice.items)) {
     return 0;
   }
 
@@ -130,7 +101,6 @@ export function getSubtotal(invoice) {
   }, 0);
 }
 
-
 // =====================================================
 // CALCULATE TOTAL
 // =====================================================
@@ -139,12 +109,8 @@ export function getTotal(invoice) {
   const subtotal = getSubtotal(invoice);
   const discount = Number(invoice?.discount) || 0;
 
-  return Math.max(
-    subtotal - discount,
-    0
-  );
+  return Math.max(subtotal - discount, 0);
 }
-
 
 // =====================================================
 // CALCULATE BALANCE DUE
@@ -152,15 +118,10 @@ export function getTotal(invoice) {
 
 export function getBalanceDue(invoice) {
   const total = getTotal(invoice);
-  const amountPaid =
-    Number(invoice?.amountPaid) || 0;
+  const amountPaid = Number(invoice?.amountPaid) || 0;
 
-  return Math.max(
-    total - amountPaid,
-    0
-  );
+  return Math.max(total - amountPaid, 0);
 }
-
 
 // =====================================================
 // GET PAYMENT STATUS
@@ -168,8 +129,7 @@ export function getBalanceDue(invoice) {
 
 export function getPaymentStatus(invoice) {
   const total = getTotal(invoice);
-  const amountPaid =
-    Number(invoice?.amountPaid) || 0;
+  const amountPaid = Number(invoice?.amountPaid) || 0;
 
   // Fully paid
   if (amountPaid >= total && total > 0) {
@@ -184,15 +144,18 @@ export function getPaymentStatus(invoice) {
   // Due date check
   if (invoice?.dueDate) {
     const today = new Date();
-    const dueDate = new Date(invoice.dueDate);
-
     today.setHours(0, 0, 0, 0);
-    dueDate.setHours(0, 0, 0, 0);
 
-    if (
-      dueDate < today &&
-      amountPaid < total
-    ) {
+    let dueDate;
+    if (typeof invoice.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(invoice.dueDate)) {
+      const [year, month, day] = invoice.dueDate.split("-").map(Number);
+      dueDate = new Date(year, month - 1, day);
+    } else {
+      dueDate = new Date(invoice.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+    }
+
+    if (dueDate < today && amountPaid < total) {
       return "Overdue";
     }
   }
@@ -200,7 +163,6 @@ export function getPaymentStatus(invoice) {
   // No payment
   return "Pending";
 }
-
 
 // =====================================================
 // FORMAT INR
